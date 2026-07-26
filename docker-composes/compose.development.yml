@@ -1,0 +1,61 @@
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  keycloak:
+    command: start-dev
+
+    environment:
+      KC_HOSTNAME_STRICT: "false"
+
+    ports:
+      - "8080:8080"
+
+  team-tickets-api:
+    build:
+      context: ../../team-tickets/backend
+      dockerfile: Dockerfile.development
+    environment:
+      APP_ENV: development
+    ports:
+      - "8000:8000"
+    profiles:
+      - team-tickets
+      - full
+
+  team-tickets-web:
+    build:
+      context: ../../team-tickets/frontend
+      dockerfile: Dockerfile.development
+    ports:
+      - "4500:80"
+    profiles:
+      - team-tickets
+      - full
+
+  team-documents-api:
+    build:
+      context: ../../team-documents/backend
+      dockerfile: Dockerfile.development
+    environment:
+      APP_ENV: development
+    ports:
+      - "9000:9000"
+    profiles:
+      - team-documents
+      - full
+
+  team-documents-web:
+    build:
+      context: ../../team-documents/frontend
+      dockerfile: Dockerfile.development
+    ports:
+      - "4600:80"
+    profiles:
+      - team-documents
+      - full
