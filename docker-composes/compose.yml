@@ -10,8 +10,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DEFAULT_DB}
 
-      TEAM_KEYCLOACK_DB_USERNAME: ${TEAM_KEYCLOAK_DB_USERNAME}
-      TEAM_KEYCLOACK_DB_PASSWORD: ${TEAM_KEYCLOAK_DB_PASSWORD}
+      TEAM_KEYCLOAK_DB_USERNAME: ${TEAM_KEYCLOAK_DB_USERNAME}
+      TEAM_KEYCLOAK_DB_PASSWORD: ${TEAM_KEYCLOAK_DB_PASSWORD}
       TEAM_KEYCLOAK_DB: ${TEAM_KEYCLOAK_DB}
 
       TEAM_TICKETS_DB_USERNAME: ${TEAM_TICKETS_DB_USERNAME}
@@ -23,7 +23,7 @@ services:
       TEAM_DOCUMENTS_DB: ${TEAM_DOCUMENTS_DB}
     volumes:
       - postgres_data:/var/lib/postgresql
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test:
         [
@@ -110,6 +110,9 @@ services:
         condition: service_healthy
     networks:
       - team-network
+    profiles:
+      - team-tickets
+      - full
 
   team-tickets-web:
     build:
@@ -121,6 +124,9 @@ services:
       - team-tickets-api
     networks:
       - team-network
+    profiles:
+      - team-tickets
+      - full
 
   team-documents-api:
     build:
@@ -137,6 +143,9 @@ services:
         condition: service_started
     networks:
       - team-network
+    profiles:
+      - team-documents
+      - full
 
   team-documents-web:
     build:
@@ -148,6 +157,9 @@ services:
       - team-documents-api
     networks:
       - team-network
+    profiles:
+      - team-documents
+      - full
 
 volumes:
   postgres_data:

@@ -24,9 +24,6 @@ services:
       APP_ENV: development
     ports:
       - "8000:8000"
-    profiles:
-      - team-tickets
-      - full
 
   team-tickets-web:
     build:
@@ -34,9 +31,6 @@ services:
       dockerfile: Dockerfile.development
     ports:
       - "4500:80"
-    profiles:
-      - team-tickets
-      - full
 
   team-documents-api:
     build:
@@ -46,9 +40,6 @@ services:
       APP_ENV: development
     ports:
       - "9000:9000"
-    profiles:
-      - team-documents
-      - full
 
   team-documents-web:
     build:
@@ -56,6 +47,3 @@ services:
       dockerfile: Dockerfile.development
     ports:
       - "4600:80"
-    profiles:
-      - team-documents
-      - full

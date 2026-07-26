@@ -1,4 +1,3 @@
-```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -6,24 +5,40 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
 ENV_FILE="$PROJECT_DIR/env/.env.development"
-COMPOSE_FILE="$PROJECT_DIR/compose.yaml"
-DEV_COMPOSE_FILE="$PROJECT_DIR/compose.development.yaml"
+COMPOSE_FILE="$PROJECT_DIR/docker-composes/compose.yml"
+DEV_COMPOSE_FILE="$PROJECT_DIR/docker-composes/compose.development.yml"
 
 ACTION="${1:-up}"
-PROFILE="${2:-full}"
+PROFILE="${2:-}"
+
+for file in "$ENV_FILE" "$COMPOSE_FILE" "$DEV_COMPOSE_FILE"; do
+  if [[ ! -f "$file" ]]; then
+    echo "File not found: $file" >&2
+    exit 1
+  fi
+done
 
 compose() {
-  docker compose \
-    --env-file "$ENV_FILE" \
-    -f "$COMPOSE_FILE" \
-    -f "$DEV_COMPOSE_FILE" \
-    --profile "$PROFILE" \
-    "$@"
+  local args=(
+    --env-file "$ENV_FILE"
+    -f "$COMPOSE_FILE"
+    -f "$DEV_COMPOSE_FILE"
+  )
+
+  if [[ -n "$PROFILE" ]]; then
+    args+=(--profile "$PROFILE")
+  fi
+
+  docker compose "${args[@]}" "$@"
 }
 
 case "$ACTION" in
   up)
     compose up -d --build
+    ;;
+
+  stop)
+    compose stop
     ;;
 
   rebuild)
@@ -33,6 +48,10 @@ case "$ACTION" in
 
   down)
     compose down
+    ;;
+
+  down-v)
+    compose down -v
     ;;
 
   restart)
@@ -84,4 +103,3 @@ case "$ACTION" in
     exit 1
     ;;
 esac
-```
