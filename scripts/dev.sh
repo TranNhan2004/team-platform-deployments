@@ -4,9 +4,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 
-ENV_FILE="$PROJECT_DIR/env/.env.development"
+ENV_FILE="$PROJECT_DIR/env/.env.dev"
 COMPOSE_FILE="$PROJECT_DIR/docker-composes/compose.yml"
-DEV_COMPOSE_FILE="$PROJECT_DIR/docker-composes/compose.development.yml"
+DEV_COMPOSE_FILE="$PROJECT_DIR/docker-composes/compose.dev.yml"
 
 ACTION="${1:-up}"
 PROFILE="${2:-}"
