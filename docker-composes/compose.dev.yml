@@ -1,0 +1,76 @@
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  redis-insight:
+    image: redis/redisinsight:3.8.0
+    container_name: team-platform-redis-insight
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis_insight_data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - team-network
+
+  keycloak:
+    command: start-dev
+    environment:
+      KC_HOSTNAME_STRICT: "false"
+    ports:
+      - "8080:8080"
+
+  mailpit:
+    image: axllent/mailpit:v1.30.6
+    container_name: team-platform-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH: ${MP_SMTP_AUTH}
+      MP_SMTP_AUTH_ALLOW_INSECURE: ${MP_SMTP_AUTH_ALLOW_INSECURE}
+    networks:
+      - team-network
+
+  team-tickets-api:
+    build:
+      context: ../../team-tickets/backend
+      dockerfile: Dockerfile.development
+    environment:
+      APP_ENV: development
+    ports:
+      - "8000:8000"
+
+  team-tickets-web:
+    build:
+      context: ../../team-tickets/frontend
+      dockerfile: Dockerfile.development
+    ports:
+      - "4500:80"
+
+  team-documents-api:
+    build:
+      context: ../../team-documents/backend
+      dockerfile: Dockerfile.development
+    environment:
+      APP_ENV: development
+    ports:
+      - "9000:9000"
+
+  team-documents-web:
+    build:
+      context: ../../team-documents/frontend
+      dockerfile: Dockerfile.development
+    ports:
+      - "4600:80"
+
+volumes:
+  redis_insight_data:

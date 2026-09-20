@@ -9,11 +9,33 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DEFAULT_DB}
-    ports:
-      - "${POSTGRES_PORT}:5432"
+
+      TEAM_KEYCLOAK_DB_USERNAME: ${TEAM_KEYCLOAK_DB_USERNAME}
+      TEAM_KEYCLOAK_DB_PASSWORD: ${TEAM_KEYCLOAK_DB_PASSWORD}
+      TEAM_KEYCLOAK_DB: ${TEAM_KEYCLOAK_DB}
+
+      TEAM_ORGANIZATION_DB_USERNAME: ${TEAM_ORGANIZATION_DB_USERNAME}
+      TEAM_ORGANIZATION_DB_PASSWORD: ${TEAM_ORGANIZATION_DB_PASSWORD}
+      TEAM_ORGANIZATION_DB: ${TEAM_ORGANIZATION_DB}
+
+      TEAM_TICKETS_DB_USERNAME: ${TEAM_TICKETS_DB_USERNAME}
+      TEAM_TICKETS_DB_PASSWORD: ${TEAM_TICKETS_DB_PASSWORD}
+      TEAM_TICKETS_DB: ${TEAM_TICKETS_DB}
+
+      TEAM_DOCUMENTS_DB_USERNAME: ${TEAM_DOCUMENTS_DB_USERNAME}
+      TEAM_DOCUMENTS_DB_PASSWORD: ${TEAM_DOCUMENTS_DB_PASSWORD}
+      TEAM_DOCUMENTS_DB: ${TEAM_DOCUMENTS_DB}
+
+      TEAM_CHATS_DB_USERNAME: ${TEAM_CHATS_DB_USERNAME}
+      TEAM_CHATS_DB_PASSWORD: ${TEAM_CHATS_DB_PASSWORD}
+      TEAM_CHATS_DB: ${TEAM_CHATS_DB}
+
+      TEAM_IT_SERVICES_DB_USERNAME: ${TEAM_IT_SERVICES_DB_USERNAME}
+      TEAM_IT_SERVICES_DB_PASSWORD: ${TEAM_IT_SERVICES_DB_PASSWORD}
+      TEAM_IT_SERVICES_DB: ${TEAM_IT_SERVICES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test:
         [
@@ -38,8 +60,6 @@ services:
         "--requirepass",
         "${REDIS_PASSWORD}",
       ]
-    ports:
-      - "${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -56,109 +76,76 @@ services:
     restart: unless-stopped
     command: start-dev
     environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-
-      KC_DB: postgres
-      KC_DB_URL_HOST: postgres
-      KC_DB_URL_PORT: 5432
-      KC_DB_URL_DATABASE: ${KEYCLOAK_DB_NAME}
-      KC_DB_USERNAME: ${POSTGRES_USER}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      KC_DB: ${KC_DB}
+      KC_DB_URL_HOST: ${KC_DB_URL_HOST}
+      KC_DB_URL_PORT: ${KC_DB_URL_PORT}
+      KC_DB_URL_DATABASE: ${TEAM_KEYCLOAK_DB}
+      KC_DB_USERNAME: ${TEAM_KEYCLOAK_DB_USERNAME}
+      KC_DB_PASSWORD: ${TEAM_KEYCLOAK_DB_PASSWORD}
 
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_PROXY_HEADERS: xforwarded
-    ports:
-      - "${KEYCLOAK_PORT}:8080"
+
+      KC_HEALTH_ENABLED: "true"
+
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - team-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q '200 OK' <&3",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
   team-tickets-api:
     build:
-      context: ../team-tickets/backend
+      context: ../../team-tickets/backend
       dockerfile: Dockerfile
     container_name: team-tickets-api
     restart: unless-stopped
-    environment:
-      APP_ENV: ${APP_ENV}
-      APP_PORT: 8080
-
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${TICKETS_DB_NAME}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-
-      KEYCLOAK_BASE_URL: http://keycloak:8080
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-    ports:
-      - "${TICKETS_API_PORT}:8080"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       keycloak:
-        condition: service_started
+        condition: service_healthy
     networks:
       - team-network
     profiles:
-      - test-tt
-      - prod-tt
+      - team-tickets
+      - full
 
   team-tickets-web:
     build:
-      context: ../team-tickets/frontend
+      context: ../../team-tickets/frontend
       dockerfile: Dockerfile
     container_name: team-tickets-web
     restart: unless-stopped
-    environment:
-      API_BASE_URL: ${TICKETS_PUBLIC_API_BASE_URL}
-      KEYCLOAK_BASE_URL: ${KEYCLOAK_PUBLIC_BASE_URL}
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-      KEYCLOAK_CLIENT_ID: ${TICKETS_KEYCLOAK_CLIENT_ID}
-    ports:
-      - "${TICKETS_WEB_PORT}:80"
     depends_on:
       - team-tickets-api
     networks:
       - team-network
     profiles:
-      - test-tt
-      - prod-tt
+      - team-tickets
+      - full
 
   team-documents-api:
     build:
-      context: ../team-documents/backend
+      context: ../../team-documents/backend
       dockerfile: Dockerfile
     container_name: team-documents-api
     restart: unless-stopped
-    environment:
-      APP_ENV: ${APP_ENV}
-      APP_PORT: 8080
-
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${DOCUMENTS_DB_NAME}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-
-      KEYCLOAK_BASE_URL: http://keycloak:8080
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-
-      TICKETS_API_BASE_URL: http://team-tickets-api:8080
-    ports:
-      - "${DOCUMENTS_API_PORT}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -166,34 +153,25 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_started
-      team-tickets-api:
-        condition: service_started
     networks:
       - team-network
     profiles:
-      - test-tt
-      - prod-tt
+      - team-documents
+      - full
 
   team-documents-web:
     build:
-      context: ../team-documents/frontend
+      context: ../../team-documents/frontend
       dockerfile: Dockerfile
     container_name: team-documents-web
     restart: unless-stopped
-    environment:
-      API_BASE_URL: ${DOCUMENTS_PUBLIC_API_BASE_URL}
-      KEYCLOAK_BASE_URL: ${KEYCLOAK_PUBLIC_BASE_URL}
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
-      KEYCLOAK_CLIENT_ID: ${DOCUMENTS_KEYCLOAK_CLIENT_ID}
-    ports:
-      - "${DOCUMENTS_WEB_PORT}:80"
     depends_on:
       - team-documents-api
     networks:
       - team-network
     profiles:
-      - test-tt
-      - prod-tt
+      - team-documents
+      - full
 
 volumes:
   postgres_data:
