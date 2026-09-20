@@ -1,9 +1,11 @@
 services:
   postgres:
+    container_name: team-postgres
     ports:
       - "5432:5432"
 
   redis:
+    container_name: team-redis
     ports:
       - "6379:6379"
 
@@ -22,6 +24,7 @@ services:
       - team-network
 
   keycloak:
+    container_name: team-keycloak
     command: start-dev
     environment:
       KC_HOSTNAME_STRICT: "false"
@@ -39,6 +42,12 @@ services:
       MP_SMTP_AUTH_ALLOW_INSECURE: ${MP_SMTP_AUTH_ALLOW_INSECURE}
     networks:
       - team-network
+
+  rabbitmq:
+    container_name: team-platform-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
 
   team-tickets-api:
     build:

@@ -5,34 +5,6 @@ services:
     image: postgres:18-alpine
     container_name: team-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DEFAULT_DB}
-
-      TEAM_KEYCLOAK_DB_USERNAME: ${TEAM_KEYCLOAK_DB_USERNAME}
-      TEAM_KEYCLOAK_DB_PASSWORD: ${TEAM_KEYCLOAK_DB_PASSWORD}
-      TEAM_KEYCLOAK_DB: ${TEAM_KEYCLOAK_DB}
-
-      TEAM_ORGANIZATION_DB_USERNAME: ${TEAM_ORGANIZATION_DB_USERNAME}
-      TEAM_ORGANIZATION_DB_PASSWORD: ${TEAM_ORGANIZATION_DB_PASSWORD}
-      TEAM_ORGANIZATION_DB: ${TEAM_ORGANIZATION_DB}
-
-      TEAM_TICKETS_DB_USERNAME: ${TEAM_TICKETS_DB_USERNAME}
-      TEAM_TICKETS_DB_PASSWORD: ${TEAM_TICKETS_DB_PASSWORD}
-      TEAM_TICKETS_DB: ${TEAM_TICKETS_DB}
-
-      TEAM_DOCUMENTS_DB_USERNAME: ${TEAM_DOCUMENTS_DB_USERNAME}
-      TEAM_DOCUMENTS_DB_PASSWORD: ${TEAM_DOCUMENTS_DB_PASSWORD}
-      TEAM_DOCUMENTS_DB: ${TEAM_DOCUMENTS_DB}
-
-      TEAM_CHATS_DB_USERNAME: ${TEAM_CHATS_DB_USERNAME}
-      TEAM_CHATS_DB_PASSWORD: ${TEAM_CHATS_DB_PASSWORD}
-      TEAM_CHATS_DB: ${TEAM_CHATS_DB}
-
-      TEAM_IT_SERVICES_DB_USERNAME: ${TEAM_IT_SERVICES_DB_USERNAME}
-      TEAM_IT_SERVICES_DB_PASSWORD: ${TEAM_IT_SERVICES_DB_PASSWORD}
-      TEAM_IT_SERVICES_DB: ${TEAM_IT_SERVICES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql
       - ../postgres/init:/docker-entrypoint-initdb.d:ro
@@ -76,10 +48,8 @@ services:
     restart: unless-stopped
     command: start-dev
     environment:
-      KC_DB: ${KC_DB}
-      KC_DB_URL_HOST: ${KC_DB_URL_HOST}
-      KC_DB_URL_PORT: ${KC_DB_URL_PORT}
-      KC_DB_URL_DATABASE: ${TEAM_KEYCLOAK_DB}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${TEAM_KEYCLOAK_DB}
       KC_DB_USERNAME: ${TEAM_KEYCLOAK_DB_USERNAME}
       KC_DB_PASSWORD: ${TEAM_KEYCLOAK_DB_PASSWORD}
 
@@ -88,7 +58,6 @@ services:
       KC_PROXY_HEADERS: xforwarded
 
       KC_HEALTH_ENABLED: "true"
-
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD}
     depends_on:
@@ -106,6 +75,23 @@ services:
       timeout: 5s
       retries: 20
       start_period: 30s
+
+  rabbitmq:
+    image: rabbitmq:4.3.4-management
+    container_name: team-platform-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   team-tickets-api:
     build:
@@ -176,6 +162,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  rabbitmq_data:
 
 networks:
   team-network:

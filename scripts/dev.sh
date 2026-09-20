@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+KEYCLOAK_BACKUP_DIR="$(cd -- "$PROJECT_DIR/../keycloak" && pwd)"
 
 ENV_FILE="$PROJECT_DIR/env/.env.dev"
 COMPOSE_FILE="$PROJECT_DIR/docker-composes/compose.yml"
@@ -89,6 +90,102 @@ case "$ACTION" in
     esac
     ;;
 
+  reset-keycloak-admin)
+    echo "Stopping Keycloak..."
+    compose stop keycloak
+
+    echo "Creating temporary recovery admin..."
+
+    if compose run --rm --no-deps keycloak \
+        bootstrap-admin user \
+        --username:env KC_BOOTSTRAP_ADMIN_USERNAME \
+        --password:env KC_BOOTSTRAP_ADMIN_PASSWORD \
+        --no-prompt
+    then
+        echo "Temporary admin created successfully."
+    else
+        status=$?
+        echo "Failed to create temporary admin." >&2
+
+        echo "Starting Keycloak again..."
+        compose up -d keycloak
+
+        exit "$status"
+    fi
+
+    echo "Starting Keycloak..."
+    compose up -d keycloak
+
+    echo
+    echo "Recovery admin created."
+    echo "Login to the master realm Admin Console using:"
+    echo "  username: \$KC_BOOTSTRAP_ADMIN_USERNAME"
+    echo "  password: \$KC_BOOTSTRAP_ADMIN_PASSWORD"
+    ;;
+
+  export-keycloak)
+    echo "Stopping Keycloak..."
+    compose stop keycloak
+
+    mkdir -p "$KEYCLOAK_BACKUP_DIR"
+
+    echo "Exporting realm team-platform..."
+
+    if compose run --rm --no-deps \
+        -v "$KEYCLOAK_BACKUP_DIR:/opt/keycloak/data/export" \
+        keycloak \
+        export \
+        --dir /opt/keycloak/data/export \
+        --realm team-platform \
+        --users realm_file
+    then
+        echo "Export completed:"
+        echo "  $KEYCLOAK_BACKUP_DIR/team-platform-realm.json"
+    else
+        status=$?
+        echo "Export failed." >&2
+
+        compose up -d keycloak
+        exit "$status"
+    fi
+
+    echo "Starting Keycloak..."
+    compose up -d keycloak
+    ;;
+
+  import-keycloak)
+    BACKUP_FILE="$KEYCLOAK_BACKUP_DIR/team-platform-realm.json"
+
+    if [[ ! -f "$BACKUP_FILE" ]]; then
+        echo "Backup file not found: $BACKUP_FILE" >&2
+        exit 1
+    fi
+
+    echo "Stopping Keycloak..."
+    compose stop keycloak
+
+    echo "Importing realm team-platform..."
+
+    if compose run --rm --no-deps \
+        -v "$KEYCLOAK_BACKUP_DIR:/opt/keycloak/data/import:ro" \
+        keycloak \
+        import \
+        --file /opt/keycloak/data/import/team-platform-realm.json \
+        --override true
+    then
+        echo "Import completed."
+    else
+        status=$?
+        echo "Import failed." >&2
+
+        compose up -d keycloak
+        exit "$status"
+    fi
+
+    echo "Starting Keycloak..."
+    compose up -d keycloak
+    ;;
+
   *)
     echo "Usage:"
     echo "  $0 up [profile]"
@@ -100,6 +197,7 @@ case "$ACTION" in
     echo "  $0 config [profile]"
     echo "  $0 clean [profile]"
     echo "  $0 reset [profile]"
+    echo "  $0 reset-keycloak-admin [profile]"
     exit 1
     ;;
 esac
